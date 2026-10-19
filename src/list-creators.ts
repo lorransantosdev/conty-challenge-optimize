@@ -29,15 +29,16 @@ WITH scored AS (
   JOIN json_each(?) campaign ON campaign.value = cn.value
   GROUP BY c.id
 ),
-latest AS (
-  SELECT account_id, views,
-    ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY captured_at DESC, id DESC) AS rn
-  FROM metrics
-),
 reach AS (
-  SELECT a.creator_id, SUM(l.views) AS latest_reach
+  SELECT a.creator_id,
+    SUM((
+      SELECT m.views FROM metrics m
+      WHERE m.account_id = a.id
+      ORDER BY m.captured_at DESC, m.id DESC
+      LIMIT 1
+    )) AS latest_reach
   FROM social_accounts a
-  JOIN latest l ON l.account_id = a.id AND l.rn = 1
+  JOIN scored s ON s.id = a.creator_id
   GROUP BY a.creator_id
 ),
 page AS (
